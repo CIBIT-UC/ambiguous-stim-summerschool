@@ -17,7 +17,7 @@ try
         end
         
     else
-        fprintf('Start stimulus: %i', triggerID);
+        fprintf('Trigger: %i \n', triggerID);
     end
     
     success = 1;

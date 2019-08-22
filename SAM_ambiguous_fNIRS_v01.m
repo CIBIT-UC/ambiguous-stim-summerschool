@@ -125,10 +125,10 @@ end
 protocol = 'ambiguous';
 
 % Duration of the experiment (sec)
-protoTime = 120;
+protoTime = 12;
 
 % Duration of the initial baseline (sec)
-baselineTime = 20;
+baselineTime = 1;
 
 % Duration of the initial block before baseline (sec)
 readyDuration = 1;
@@ -875,14 +875,24 @@ try
         % end while cycle
     end
     
-    % ------------------------------------------------ %
+    % ---------------------------------------------------------------------
+    %              Display final fixation cross (fNIRS)
+    % ---------------------------------------------------------------------
+    
+    Screen('FillRect', windowID, [255 0 0], FixCross');
+    frametime(currentFr) = Screen('Flip',windowID);
+    % Send trigger.
+    success=sendTrigger(portTrigg, PortAddress, trigBaseline); % trigger 35 - start?
+    
+    WaitSecs(baselineTime);
+    
+    % ---------------------------------------------------------------------
+    %              Stim finished
+    % ---------------------------------------------------------------------
+    
     % Send trigger for end.
     success=sendTrigger(portTrigg, PortAddress, trigEnd);
-    % ------------------------------------------------ %
-    %     lptwrite(PortAddress, 55);
-    %     WaitSecs(0.004);
-    %     lptwrite(PortAddress, 0);
-    
+
     %     Screen('FillRect', windowID, [255 255 255], [xcenter-largura, (ycenter-altura/2), xcenter+largura, (ycenter+altura/2)]);
     Screen('FillRect', windowID, [255 0 0], FixCross');
     frametime(currentFr) = Screen('Flip',windowID);
