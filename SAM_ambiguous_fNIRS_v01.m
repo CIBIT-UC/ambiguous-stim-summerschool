@@ -335,14 +335,11 @@ try
     success=sendTrigger(portTrigg, PortAddress, trigReady); % trigger 35 - start?
     
     WaitSecs(readyDuration);
-    
-    
-    
+        
     % Screen('FillRect', windowID, [255 255 255], [xcenter-largura, (ycenter-altura/2), xcenter+largura, (ycenter+altura/2)]);
     Screen('FillRect', windowID, [255 0 0], FixCross');
     frametime(currentFr) = Screen('Flip',windowID);
-    
-    
+        
     [FlipInterval, FlipSamples, FlipStd ] = Screen('GetFlipInterval', windowID, [], [], []);
     
     % ---------------------------------------------------------------------
@@ -458,7 +455,7 @@ try
         teclas{currentFr,1} = keyCode;
         % A key/button was pressed
         if keyIsDown == 1
-            clc
+            
             % Check the name (string) of the key that was pressed
             keystring = KbName(keyCode);
             
