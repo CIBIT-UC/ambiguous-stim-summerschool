@@ -73,15 +73,33 @@ keytriggercode = 53;
 %%%
 teclas = {};
 
+
 % --------------------------------------------------------------------
 %                  Port and Trigger Settings
 % --------------------------------------------------------------------
+
+% Triggers IDs
+trigReady=35;
+trigBaseline=1;
+trigEnd=14;
+trigDouble=222;
+trigStopDouble=220;
+trigInward=21;
+trigStopInward=20;
+trigDownward=11;
+trigStopDownward=10;
+
+% 1 to send state (1 or 2 triggers) 
+stateTrigger = 0;
 
 % 1 to send triggers through port conn
 portTrigg = 0;
 
 % choose between 1 - lptwrite (32bits); or 2 - IOport (64bits);
 syncbox = 2;
+
+% init var;
+PortAddress=[];
 
 if portTrigg
     if syncbox == 1
@@ -108,6 +126,13 @@ protocol = 'ambiguous';
 
 % Duration of the experiment (sec)
 protoTime = 120;
+
+% Duration of the initial baseline (sec)
+baselineTime = 20;
+
+% Duration of the initial block before baseline (sec)
+readyDuration = 1;
+
 
 % Determine screen resolution
 screens = Screen('Screens');
@@ -306,32 +331,19 @@ try
     % Wait for the subject to be ready
     KbWait;
     
-    %     Screen('FillRect', windowID, [255 255 255], [xcenter-largura, (ycenter-altura/2), xcenter+largura, (ycenter+altura/2)]);
+    % Send trigger.
+    success=sendTrigger(portTrigg, PortAddress, trigReady); % trigger 35 - start?
+    
+    WaitSecs(readyDuration);
+    
+    
+    
+    % Screen('FillRect', windowID, [255 255 255], [xcenter-largura, (ycenter-altura/2), xcenter+largura, (ycenter+altura/2)]);
     Screen('FillRect', windowID, [255 0 0], FixCross');
     frametime(currentFr) = Screen('Flip',windowID);
     
+    
     [FlipInterval, FlipSamples, FlipStd ] = Screen('GetFlipInterval', windowID, [], [], []);
-    
-    % Wait 1 sec before starting showing the dots
-    WaitSecs(1)
-    
-    % Send trigger right before the experiment starts
-    if portTrigg
-        if syncbox==1
-            lptwrite(PortAddress, 35);
-            WaitSecs(0.004);
-            lptwrite(PortAddress, 0);
-        elseif syncbox==2
-            io64(ioObj, PortAddress, 35);
-            WaitSecs(0.004);
-            io64(ioObj, PortAddress, 0);
-        end
-    end
-    
-    % send trigger to EEG system
-    %     lptwrite(PortAddress, 55);
-    %     WaitSecs(0.04)
-    %     lptwrite(PortAddress, 0);
     
     % ---------------------------------------------------------------------
     %                           Start experiment
@@ -344,7 +356,7 @@ try
     % Get current time
     currentTime = initTime - GetSecs;
     % Set time for experiment to be complete
-    endTime = currentTime + protoTime;
+    endTime = currentTime + protoTime + baselineTime;
     
     % no changes have occured yet
     nchange = 0;
@@ -362,6 +374,15 @@ try
     matpress{numbpress+1, 5} = dots.size;
     matpress{numbpress+1, 6} = stim_ratio;
     numbpress = numbpress + 1;
+    
+    % ---------------------------------------------------------------------
+    %                           Display baseline fixation cross (fNIRS)
+    % ---------------------------------------------------------------------
+    
+    % Send trigger.
+    success=sendTrigger(portTrigg, PortAddress, trigBaseline); % trigger 35 - start?
+    
+    WaitSecs(baselineTime);
     
     % Run while the current time is less than the experiment total time
     while currentTime < endTime
@@ -385,18 +406,9 @@ try
             dots.center(1,2) = dots.posx(dotstate(currstate,2));
             %             dots.center(2,2) = dots.posy(dotstate(currstate,1));
             
-            if portTrigg
-                % send trigger with the new position
-                if syncbox==1
-                    lptwrite(PortAddress, currstate);
-                    WaitSecs(0.004);
-                    lptwrite(PortAddress, 0);
-                elseif syncbox==2
-                    io64(ioObj, PortAddress, currstate);
-                    WaitSecs(0.004);
-                    io64(ioObj, PortAddress, 0);
-                end
-            end
+            % Send trigger.
+            success=sendTrigger(portTrigg, PortAddress, currstate); % send trigger with the new position
+            
             nchange = nchange + 1;
             matdots{nchange, 1} = currstate;
             matdots{nchange,2} = currentFr;
@@ -429,8 +441,6 @@ try
         % get frame time
         frametime(currentFr) = Screen('Flip',windowID);
         
-        % % % %        % Get screenshot
-        % % % %         ImageArrayN=Screen('GetImage', windowID, [], [], [], []);
         
         %%
         %----------------------------------------------------------------%
@@ -460,18 +470,10 @@ try
                     Priority(0);
                     
                     % ------------------------------------------------ %
-                    % Send trigger for ending
-                    if portTrigg
-                        if syncbox==1
-                            lptwrite(PortAddress, 14);
-                            WaitSecs(0.004);
-                            lptwrite(PortAddress, 0);
-                        elseif syncbox==2
-                            io64(ioObj, PortAddress, 14);
-                            WaitSecs(0.004);
-                            io64(ioObj, PortAddress, 0);
-                        end
-                    end
+                    
+                    % Send trigger.
+                    success=sendTrigger(portTrigg, PortAddress, trigEnd);
+                    
                     % ------------------------------------------------ %
                     
                     % Save variables anyway
@@ -523,17 +525,10 @@ try
                     
                     % ------------------------------------------------ %
                     % Send trigger for double
-                    if portTrigg
-                        if syncbox==1
-                            lptwrite(PortAddress, 222);
-                            WaitSecs(0.004);
-                            lptwrite(PortAddress, 0);
-                        elseif syncbox==2
-                            io64(ioObj, PortAddress, 222);
-                            WaitSecs(0.004);
-                            io64(ioObj, PortAddress, 0);
-                        end
-                    end
+                    
+                    % Send trigger.
+                    success=sendTrigger(portTrigg, PortAddress, trigDouble);
+                    
                     % ------------------------------------------------ %
                     
                 elseif keyCode(horzkeycode) && button1 == 1 && button2 == 0
@@ -553,18 +548,11 @@ try
                     doublepress = 1;
                     button2 = 1;
                     % ------------------------------------------------ %
-                    % Send trigger for in
-                    if portTrigg
-                        if syncbox==1
-                            lptwrite(PortAddress, 21);
-                            WaitSecs(0.004);
-                            lptwrite(PortAddress, 0);
-                        elseif syncbox==2
-                            io64(ioObj, PortAddress, 21);
-                            WaitSecs(0.004);
-                            io64(ioObj, PortAddress, 0);
-                        end
-                    end
+                    % Send trigger for trigInward
+                    
+                    % Send trigger.
+                    success=sendTrigger(portTrigg, PortAddress, trigInward);
+                    
                     % ------------------------------------------------ %
                     
                 elseif keyCode(vertkeycode) && button1 == 0 && button2 == 1
@@ -585,17 +573,10 @@ try
                     button1 = 1;
                     % ------------------------------------------------ %
                     % Send trigger for down
-                    if portTrigg
-                        if syncbox==1
-                            lptwrite(PortAddress, 11);
-                            WaitSecs(0.004);
-                            lptwrite(PortAddress, 0);
-                        elseif syncbox==2
-                            io64(ioObj, PortAddress, 11);
-                            WaitSecs(0.004);
-                            io64(ioObj, PortAddress, 0);
-                        end
-                    end
+                    
+                    % Send trigger.
+                    success=sendTrigger(portTrigg, PortAddress, trigDownward);
+                    
                     % ------------------------------------------------ %
                 elseif button1 == 1 && button2 == 1
                     % There are two buttons pressed, "downward" and "inward",
@@ -621,18 +602,10 @@ try
                     Priority(0);
                     
                     % ------------------------------------------------ %
-                    % Send trigger for end
-                    if portTrigg
-                        if syncbox==1
-                            lptwrite(PortAddress, 14);
-                            WaitSecs(0.004);
-                            lptwrite(PortAddress, 0);
-                        elseif syncbox==2
-                            io64(ioObj, PortAddress, 14);
-                            WaitSecs(0.004);
-                            io64(ioObj, PortAddress, 0);
-                        end
-                    end
+                    
+                    % Send trigger.
+                    success=sendTrigger(portTrigg, PortAddress, trigEnd);
+                    
                     % ------------------------------------------------ %
                     
                     %                     lptwrite(PortAddress, 14);
@@ -693,18 +666,10 @@ try
                     button1 = 1;
                     time_down = time_down + FlipInterval;
                     % ------------------------------------------------ %
-                    % Send trigger for down
-                    if portTrigg
-                        if syncbox==1
-                            lptwrite(PortAddress, 11);
-                            WaitSecs(0.004);
-                            lptwrite(PortAddress, 0);
-                        elseif syncbox==2
-                            io64(ioObj, PortAddress, 11);
-                            WaitSecs(0.004);
-                            io64(ioObj, PortAddress, 0);
-                        end
-                    end
+                    
+                    % Send trigger for Downward.
+                    success=sendTrigger(portTrigg, PortAddress, trigDownward);
+                    
                     % ------------------------------------------------ %
                     
                     %                     lptwrite(PortAddress, 0);
@@ -721,18 +686,10 @@ try
                     button2 = 1;
                     time_in = time_in + FlipInterval;
                     % ------------------------------------------------ %
-                    % Send trigger for in
-                    if portTrigg
-                        if syncbox==1
-                            lptwrite(PortAddress, 21);
-                            WaitSecs(0.004);
-                            lptwrite(PortAddress, 0);
-                        elseif syncbox==2
-                            io64(ioObj, PortAddress, 21);
-                            WaitSecs(0.004);
-                            io64(ioObj, PortAddress, 0);
-                        end
-                    end
+                    
+                    % Send trigger for Inward.
+                    success=sendTrigger(portTrigg, PortAddress, trigInward);
+                    
                     % ------------------------------------------------ %
                     %                     lptwrite(PortAddress, 0);
                 elseif keyCode(horzkeycode) && button1 == 1 && button2 == 1  && doublepress < 40
@@ -752,18 +709,10 @@ try
                     doublepress = 0;
                     time_down = time_down + FlipInterval;
                     % ------------------------------------------------ %
-                    % Send trigger for stop down
-                    if portTrigg
-                        if syncbox==1
-                            lptwrite(PortAddress, 10);
-                            WaitSecs(0.004);
-                            lptwrite(PortAddress, 0);
-                        elseif syncbox==2
-                            io64(ioObj, PortAddress, 10);
-                            WaitSecs(0.004);
-                            io64(ioObj, PortAddress, 0);
-                        end
-                    end
+                    
+                    % Send trigger for stopDownward.
+                    success=sendTrigger(portTrigg, PortAddress, trigStopDownward);
+                    
                     % ------------------------------------------------ %
                     %                     lptwrite(PortAddress, 0);
                 elseif keyCode(vertkeycode) && button1 == 1 && button2 == 1  && doublepress < 40
@@ -783,18 +732,10 @@ try
                     doublepress = 0;
                     time_in = time_in + FlipInterval;
                     % ------------------------------------------------ %
-                    % Send trigger for stop in
-                    if portTrigg
-                        if syncbox==1
-                            lptwrite(PortAddress, 20);
-                            WaitSecs(0.004);
-                            lptwrite(PortAddress, 0);
-                        elseif syncbox==2
-                            io64(ioObj, PortAddress, 20);
-                            WaitSecs(0.004);
-                            io64(ioObj, PortAddress, 0);
-                        end
-                    end
+                    
+                    % Send trigger for stopInward.
+                    success=sendTrigger(portTrigg, PortAddress, trigStopInward);
+                    
                     % ------------------------------------------------ %
                     %                     lptwrite(PortAddress, 0);
                 elseif keyCode(horzkeycode) && button1 == 1 && button2 == 1  && doublepress > 40
@@ -814,18 +755,10 @@ try
                     button2 = 1;
                     doublepress = 0;
                     % ------------------------------------------------ %
-                    % Send trigger for stop double
-                    if portTrigg
-                        if syncbox==1
-                            lptwrite(PortAddress, 220);
-                            WaitSecs(0.004);
-                            lptwrite(PortAddress, 0);
-                        elseif syncbox==2
-                            io64(ioObj, PortAddress, 220);
-                            WaitSecs(0.004);
-                            io64(ioObj, PortAddress, 0);
-                        end
-                    end
+                    
+                    % Send trigger for StopDouble.
+                    success=sendTrigger(portTrigg, PortAddress, trigStopDouble);
+                    
                     % ------------------------------------------------ %
                     %                     lptwrite(PortAddress, 0);
                 elseif keyCode(vertkeycode) && button1 == 1 && button2 == 1  && doublepress > 40
@@ -845,18 +778,10 @@ try
                     button2 = 0;
                     doublepress = 0;
                     % ------------------------------------------------ %
-                    % Send trigger for stop double
-                    if portTrigg
-                        if syncbox==1
-                            lptwrite(PortAddress, 220);
-                            WaitSecs(0.004);
-                            lptwrite(PortAddress, 0);
-                        elseif syncbox==2
-                            io64(ioObj, PortAddress, 220);
-                            WaitSecs(0.004);
-                            io64(ioObj, PortAddress, 0);
-                        end
-                    end
+                    
+                    % Send trigger for StopDouble.
+                    success=sendTrigger(portTrigg, PortAddress, trigStopDouble);
+                    
                     % ------------------------------------------------ %
                     %                     lptwrite(PortAddress, 0);
                 elseif button1 == 1
@@ -887,18 +812,11 @@ try
             button1 = 0;
             button2 = 0;
             % ------------------------------------------------ %
-            % Send trigger for stop down
-            if portTrigg
-                if syncbox==1
-                    lptwrite(PortAddress, 10);
-                    WaitSecs(0.004);
-                    lptwrite(PortAddress, 0);
-                elseif syncbox==2
-                    io64(ioObj, PortAddress, 10);
-                    WaitSecs(0.004);
-                    io64(ioObj, PortAddress, 0);
-                end
-            end
+            
+            
+            % Send trigger for trigStopDownward.
+            success=sendTrigger(portTrigg, PortAddress, trigStopDownward);
+            
             % ------------------------------------------------ %
             %             lptwrite(PortAddress, 0);
         elseif keyIsDown == 0 && button2 == 1 && doublepress < 40
@@ -916,18 +834,10 @@ try
             button1 = 0;
             button2 = 0;
             % ------------------------------------------------ %
-            % Send trigger for stop in
-            if portTrigg
-                if syncbox==1
-                    lptwrite(PortAddress, 20);
-                    WaitSecs(0.004);
-                    lptwrite(PortAddress, 0);
-                elseif syncbox==2
-                    io64(ioObj, PortAddress, 20);
-                    WaitSecs(0.004);
-                    io64(ioObj, PortAddress, 0);
-                end
-            end
+            
+            % Send trigger for trigStopInward.
+            success=sendTrigger(portTrigg, PortAddress, trigStopInward);
+            
             % ------------------------------------------------ %
             %             lptwrite(PortAddress, 0);
         elseif keyIsDown == 0 && doublepress > 40
@@ -946,18 +856,10 @@ try
             button2 = 0;
             doublepress = 0;
             % ------------------------------------------------ %
-            % Send trigger for stop double
-            if portTrigg
-                if syncbox==1
-                    lptwrite(PortAddress, 220);
-                    WaitSecs(0.004);
-                    lptwrite(PortAddress, 0);
-                elseif syncbox==2
-                    io64(ioObj, PortAddress, 220);
-                    WaitSecs(0.004);
-                    io64(ioObj, PortAddress, 0);
-                end
-            end
+            
+            % Send trigger for StopDouble.
+            success=sendTrigger(portTrigg, PortAddress, trigStopDouble);
+            
             % ------------------------------------------------ %
             %             lptwrite(PortAddress, 0);
         else
@@ -972,18 +874,8 @@ try
     end
     
     % ------------------------------------------------ %
-    % Send trigger for end
-    if portTrigg
-        if syncbox==1
-            lptwrite(PortAddress, 14);
-            WaitSecs(0.004);
-            lptwrite(PortAddress, 0);
-        elseif syncbox==2
-            io64(ioObj, PortAddress, 14);
-            WaitSecs(0.004);
-            io64(ioObj, PortAddress, 0);
-        end
-    end
+    % Send trigger for end.
+    success=sendTrigger(portTrigg, PortAddress, trigEnd);
     % ------------------------------------------------ %
     %     lptwrite(PortAddress, 55);
     %     WaitSecs(0.004);
@@ -1040,17 +932,7 @@ catch me
     
     % ------------------------------------------------ %
     %               Send trigger for end
-    if portTrigg
-        if syncbox==1
-            lptwrite(PortAddress, 14);
-            WaitSecs(0.004);
-            lptwrite(PortAddress, 0);
-        elseif syncbox==2
-            io64(ioObj, PortAddress, 14);
-            WaitSecs(0.004);
-            io64(ioObj, PortAddress, 0);
-        end
-    end
+    success=sendTrigger(portTrigg, PortAddress, trigEnd);
     % ------------------------------------------------ %
     
     [filename, pathname] = uiputfile(['matpress_' datestr(now, 'ddmm') '_' datestr(now, 'HHMM') '.mat'], pwd);
