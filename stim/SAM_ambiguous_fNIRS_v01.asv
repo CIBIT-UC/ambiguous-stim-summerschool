@@ -72,7 +72,7 @@ keytriggercode = 53;
 
 %%%
 teclas = {};
-
+configs=struct();
 
 % --------------------------------------------------------------------
 %                  Port and Trigger Settings
@@ -89,29 +89,29 @@ trigStopInward=20;
 trigDownward=11;
 trigStopDownward=10;
 
-% 1 to send state (1 or 2 triggers)
+% 1 to send state (0 or 1 triggers)
 sendStateTrigger = 0;
 
 % 1 to send triggers through port conn
-portTrigg = 0;
+configs.portTrigg = 0;
 
 % choose between 1 - lptwrite (32bits); or 2 - IOport (64bits);
-syncbox = 2;
+configs.syncbox = 2;
 
 % init var;
-PortAddress=[];
+configs.PortAddress=[];
 
-if portTrigg
-    if syncbox == 1
-        addpath('./ParallelPortLibraries/');
-        PortAddress = hex2dec('E800'); %-configure paralell port adress
-    elseif syncbox == 2
-        addpath('./ParallelPortLibraries/');
+if configs.portTrigg
+    if configs.syncbox == 1
+        addpath('libs/ParallelPortLibraries/');
+        configs.PortAddress = hex2dec('E800'); %-configure paralell port adress
+    elseif configs.syncbox == 2
+        addpath('libs/ParallelPortLibraries/');
         ioObj = io64;
         status = io64(ioObj);
-        PortAddress = hex2dec('378'); %-configure paralell port adress
+        configs.PortAddress = hex2dec('378'); %-configure paralell port adress
         data_out=1;
-        io64(ioObj, PortAddress, data_out);
+        io64(ioObj, configs.PortAddress, data_out);
         data_out=0;
         pause(0.01);
         io64(ioObj, PortAddress, data_out);
@@ -453,6 +453,7 @@ try
         [keyIsDown, secs, keyCode] = KbCheck;
         
         teclas{currentFr,1} = keyCode;
+        
         % A key/button was pressed
         if keyIsDown == 1
             
