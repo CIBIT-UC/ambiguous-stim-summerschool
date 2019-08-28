@@ -55,8 +55,8 @@ for z=1: size(raw,1)
 %         end
 
     %concatenate data per run
-    for e=1:numel(hb.stimulus.values{index11}.onset)
-        data_cond11_run= [data_cond11_run; data_cond11(e,:,:)];
+    for e=1:numel(data_cond11)
+        data_cond11_run{end+1}= data_cond11(e,:,:);
     end
     
     
